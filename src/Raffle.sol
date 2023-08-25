@@ -38,4 +38,4 @@ contract Raffle {
     function getEntranceFees()  external view returns(uint256) {
         return i_entranceFee;
     }
-}csacxz
+}
