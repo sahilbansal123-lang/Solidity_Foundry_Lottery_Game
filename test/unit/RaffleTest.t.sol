@@ -5,6 +5,8 @@ import {DeployRaffle} from "../../script/DeployRaffle.s.sol";
 import {Raffle} from "../../src/Raffle.sol";
 import {Test, console} from "forge-std/Test.sol";
 import {HelperConfig} from "../../script/HelperConfig.s.sol";
+import {Vm} from "forge-std/Vm.sol";
+import {VRFCoordinatorV2Mock} from "@chainlink/contracts/src/v0.8/mocks/VRFCoordinatorV2Mock.sol";
 
 contract RaffleTest is Test {
     /*  EVENTS */
@@ -102,20 +104,20 @@ contract RaffleTest is Test {
 
         raffle.performUpKeep("");
     }
-    function testperformUpkeeprevertifCheckUpKeepisFalse() public {
-       
-       uint256 currentBalance = 0;
-       uint256 numPlayers = 0;
-       uint256 raffleState = 0;
 
-       vm.expectRevert(
-        abi.encodeWithSelector(
-            Raffle.raffle__UpKeepNotNeeded.selector,
-            currentBalance,
-            numPlayers,
-            raffleState
-        )
-       );
+    function testperformUpkeeprevertifCheckUpKeepisFalse() public {
+        uint256 currentBalance = 0;
+        uint256 numPlayers = 0;
+        uint256 raffleState = 0;
+
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                Raffle.raffle__UpKeepNotNeeded.selector,
+                currentBalance,
+                numPlayers,
+                raffleState
+            )
+        );
 
         raffle.performUpKeep("");
     }
@@ -126,6 +128,29 @@ contract RaffleTest is Test {
         vm.warp(block.timestamp + intervals + 1);
         vm.roll(block.number + 1);
 
+        vm.recordLogs();
+        raffle.performUpKeep("");
+        Vm.Log[] memory entries = vm.getRecordedLogs();
+        bytes32 requestId = entries[1].topics[1];
+
+        Raffle.RaffleState rState = raffle.getRaffleState();
+
+        assert(uint256(requestId) > 0);
+        assert(uint256(rState) == 1);
     }
 
+    function testRandomWordsCanOnlyBeCalledAfterPerformUpkeep(
+        uint256 randomRequestId
+    ) public {
+        vm.prank(PLAYER);
+        raffle.enterRaffle{value: entranceFee}();
+        vm.warp(block.timestamp + intervals + 1);
+        vm.roll(block.number + 1);
+
+        vm.expectRevert("nonexistent Request");
+        VRFCoordinatorV2Mock(vrfCoordinator).fulfillRandomWords(
+            randomRequestId,
+            address(raffle)
+        );
+    }
 }
