@@ -7,7 +7,6 @@ import {Test, console} from "forge-std/Test.sol";
 import {HelperConfig} from "../../script/HelperConfig.s.sol";
 
 contract RaffleTest is Test {
-
     /*  EVENTS */
     event EnterRaffle(address indexed player);
 
@@ -41,7 +40,7 @@ contract RaffleTest is Test {
         vm.deal(PLAYER, STARTING_USER_BALANCE);
     }
 
-    function testRaffleInitializesInOpenState () public view {
+    function testRaffleInitializesInOpenState() public view {
         assert(raffle.getRaffleState() == Raffle.RaffleState.OPEN);
     }
 
@@ -77,6 +76,23 @@ contract RaffleTest is Test {
         raffle.enterRaffle{value: entranceFee}();
     }
 
-    
+    function testCheckUpKEEPfalseifithasnobalance() public {
+        vm.warp(block.timestamp + intervals + 1);
+        vm.roll(block.number + 1);
+        (bool upkeepNeeded, ) = raffle.checkUpKeep("");
+        assert(!upkeepNeeded);
+    }
 
+    function testCheckUpKEEPfalseifraffleisnotOPEN() public {
+        vm.prank(PLAYER);
+        raffle.enterRaffle{value: entranceFee}();
+        vm.warp(block.timestamp + intervals + 1);
+        vm.roll(block.number + 1);
+        raffle.performUpKeep("");
+
+        (bool upkeepNeede, ) = raffle.checkUpKeep("");
+        assert(upkeepNeede == false);
+    }
+
+    
 }
