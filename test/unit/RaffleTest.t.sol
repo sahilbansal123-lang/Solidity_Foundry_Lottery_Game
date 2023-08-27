@@ -153,4 +153,50 @@ contract RaffleTest is Test {
             address(raffle)
         );
     }
+
+    function testFulFillRandomWordsPicksAWinnerResetAndSendsMoney() public {
+        vm.prank(PLAYER);
+        raffle.enterRaffle{value: entranceFee}();
+        vm.warp(block.timestamp + intervals + 1);
+        vm.roll(block.number + 1);
+
+        uint256 additionalEntrance = 5;
+        uint256 startingIndex = 1;
+
+        for (
+            uint256 i = startingIndex;
+            i < startingIndex + additionalEntrance;
+            i++
+        ) {
+            address player = address(uint160(i));
+            hoax(player, 1 ether);
+            raffle.enterRaffle{value: entranceFee}();
+        }
+
+        uint256 prize = entranceFee * (additionalEntrance + 1);
+
+        vm.recordLogs();
+        raffle.performUpKeep("");
+        Vm.Log[] memory entries = vm.getRecordedLogs();
+        bytes32 requestId = entries[1].topics[1];
+
+        // uint256 previousTimeStamp = raffle.getLastTimeStanmp();
+
+        VRFCoordinatorV2Mock(vrfCoordinator).fulfillRandomWords(
+            uint256(requestId),
+            address(raffle)
+        );
+
+        // assert(uint256(raffle.getRaffleState()) == 0);
+        // assert(raffle.getRecentWinner() != address(0));
+        // assert(raffle.getlenthofPlayer() == 0);
+        // assert(previousTimeStamp < raffle.getLastTimeStanmp());
+
+        console.log(raffle.getRecentWinner().balance);
+        console.log(STARTING_USER_BALANCE + prize);
+        assert(
+            raffle.getRecentWinner().balance ==
+                STARTING_USER_BALANCE + prize - entranceFee
+        );
+    }
 }
